@@ -1,4 +1,5 @@
-# KAPESIT: Kiruthik’s Artificial Prediction Engine for Space and Intelligent Technology
+# KAPESIT
+### Kiruthik’s Artificial Prediction Engine for Space and Intelligent Technology
 
 ### Project Overview
 
@@ -46,7 +47,7 @@ This project is designed to be developed with a zero budget, using free tools, s
 
 1. **Clone the repository**:  
    ```bash
-   git clone https://github.com/your-repo/kapesit.git
+   git clone https://github.com/kiruthikpurpose/KAPESIT.git
    ```
    
 2. **Install Dependencies**:  
