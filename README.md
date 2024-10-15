@@ -143,7 +143,7 @@ KAPESIT is designed to be flexible and modular. Users can integrate any module (
 ---
 
 ## **License**
-KAPESIT is an open-source project licensed under the Apache License Version 2.0. See the [LICENSE](https://github.com/kiruthikpurpose/KAPESIT/blob/main/LICENSE) for more details.
+KAPESIT is an open-source project licensed under the Apache License. See the [LICENSE](https://github.com/kiruthikpurpose/KAPESIT/blob/main/LICENSE) for more details.
 
 ---
 
