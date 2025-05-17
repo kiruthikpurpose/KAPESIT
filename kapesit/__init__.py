@@ -15,6 +15,8 @@ from .space.quantum_field import QuantumField
 from .space.quantum_cosmology import QuantumCosmology
 from .agi.quantum_reasoning import QuantumReasoning
 from .agi.multi_agent import MultiAgentSystem
+from .core.config import Config
+from .core.logger import setup_logger
 
 __version__ = "1.0.0"
 __author__ = "KAPESIT Team"
@@ -32,9 +34,6 @@ __all__ = [
     'QuantumReasoning',
     'MultiAgentSystem'
 ]
-
-from kapesit.core.config import Config
-from kapesit.core.logger import setup_logger
 
 config = Config()
 logger = setup_logger() 

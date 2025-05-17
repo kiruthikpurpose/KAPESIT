@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.aqua.algorithms import VQE
 from qiskit.aqua.components.optimizers import COBYLA
@@ -13,6 +13,11 @@ from qiskit.chemistry.transformations import FermionicTransformation
 
 class QuantumField:
     def __init__(self, num_qubits: int, num_layers: int = 3):
+        if num_qubits <= 0:
+            raise ValueError("Number of qubits must be positive")
+        if num_layers <= 0:
+            raise ValueError("Number of layers must be positive")
+            
         self.num_qubits = num_qubits
         self.num_layers = num_layers
         self.optimizer = COBYLA(maxiter=1000)
@@ -21,7 +26,7 @@ class QuantumField:
         self.circuit = QuantumCircuit(num_qubits)
         self._build_circuit()
     
-    def _build_circuit(self):
+    def _build_circuit(self) -> None:
         for layer in range(self.num_layers):
             for qubit in range(self.num_qubits):
                 self.circuit.ry(self.initial_point[2 * (layer * self.num_qubits + qubit)], qubit)
@@ -29,7 +34,10 @@ class QuantumField:
             for qubit in range(self.num_qubits - 1):
                 self.circuit.cx(qubit, qubit + 1)
     
-    def simulate_field(self, field_config: np.ndarray) -> Dict:
+    def simulate_field(self, field_config: np.ndarray) -> Dict[str, Union[float, np.ndarray]]:
+        if field_config.shape != (self.num_qubits, self.num_qubits):
+            raise ValueError(f"Field configuration must be a {self.num_qubits}x{self.num_qubits} matrix")
+            
         hamiltonian = self._get_field_hamiltonian(field_config)
         solver = GroundStateEigensolver(self.variational_form, VQE)
         result = solver.solve(hamiltonian)
@@ -40,31 +48,36 @@ class QuantumField:
         }
     
     def _get_field_hamiltonian(self, field_config: np.ndarray) -> Hamiltonian:
-        hamiltonian = np.zeros((2**self.num_qubits, 2**self.num_qubits))
+        hamiltonian = np.zeros((2**self.num_qubits, 2**self.num_qubits), dtype=np.float64)
         for i in range(self.num_qubits):
             for j in range(self.num_qubits):
                 hamiltonian += field_config[i, j] * self._get_pauli_x(i) * self._get_pauli_x(j)
         return hamiltonian
     
     def calculate_vacuum_energy(self, field_config: np.ndarray) -> float:
+        if field_config.shape != (self.num_qubits, self.num_qubits):
+            raise ValueError(f"Field configuration must be a {self.num_qubits}x{self.num_qubits} matrix")
+            
         hamiltonian = self._get_field_hamiltonian(field_config)
         eigenvalues = np.linalg.eigvalsh(hamiltonian)
-        return np.min(eigenvalues)
+        return float(np.min(eigenvalues))
     
     def simulate_particle_creation(self, field_config: np.ndarray, 
-                                 num_particles: int) -> Dict:
+                                 num_particles: int) -> Dict[str, Union[float, np.ndarray, List[Dict]]]:
+        if field_config.shape != (self.num_qubits, self.num_qubits):
+            raise ValueError(f"Field configuration must be a {self.num_qubits}x{self.num_qubits} matrix")
+        if num_particles <= 0:
+            raise ValueError("Number of particles must be positive")
+            
         result = self.simulate_field(field_config)
-        particles = []
-        for _ in range(num_particles):
-            particle = self._create_particle(field_config)
-            particles.append(particle)
+        particles = [self._create_particle(field_config) for _ in range(num_particles)]
         return {
             "field": field_config,
             "particles": particles,
             "energy": result["energy"]
         }
     
-    def _create_particle(self, field_config: np.ndarray) -> Dict:
+    def _create_particle(self, field_config: np.ndarray) -> Dict[str, Union[int, float]]:
         position = np.random.randint(0, self.num_qubits)
         momentum = np.random.normal(0, 1)
         return {
@@ -75,10 +88,18 @@ class QuantumField:
     
     def _calculate_particle_energy(self, position: int, momentum: float, 
                                  field_config: np.ndarray) -> float:
-        return np.sqrt(momentum**2 + field_config[position, position])
+        if not 0 <= position < self.num_qubits:
+            raise ValueError(f"Position must be between 0 and {self.num_qubits-1}")
+            
+        return float(np.sqrt(momentum**2 + field_config[position, position]))
     
     def simulate_field_fluctuation(self, field_config: np.ndarray, 
-                                 num_steps: int = 100) -> List[Dict]:
+                                 num_steps: int = 100) -> List[Dict[str, Union[float, np.ndarray]]]:
+        if field_config.shape != (self.num_qubits, self.num_qubits):
+            raise ValueError(f"Field configuration must be a {self.num_qubits}x{self.num_qubits} matrix")
+        if num_steps <= 0:
+            raise ValueError("Number of steps must be positive")
+            
         fluctuations = []
         for _ in range(num_steps):
             fluctuation = np.random.normal(0, 0.1, field_config.shape)
@@ -89,29 +110,42 @@ class QuantumField:
     
     def calculate_correlation(self, field_config: np.ndarray, 
                             distance: int) -> float:
+        if field_config.shape != (self.num_qubits, self.num_qubits):
+            raise ValueError(f"Field configuration must be a {self.num_qubits}x{self.num_qubits} matrix")
+        if not 0 <= distance < self.num_qubits:
+            raise ValueError(f"Distance must be between 0 and {self.num_qubits-1}")
+            
         hamiltonian = self._get_field_hamiltonian(field_config)
         eigenvalues = np.linalg.eigvalsh(hamiltonian)
         eigenvectors = np.linalg.eigh(hamiltonian)[1]
-        correlation = 0
+        correlation = 0.0
         for i in range(self.num_qubits - distance):
             correlation += np.abs(eigenvectors[i].conj() @ eigenvectors[i + distance])
-        return correlation / (self.num_qubits - distance)
+        return float(correlation / (self.num_qubits - distance))
     
     def simulate_phase_transition(self, initial_config: np.ndarray, 
-                                final_config: np.ndarray) -> Dict:
+                                final_config: np.ndarray) -> Dict[str, Union[float, np.ndarray]]:
+        if initial_config.shape != (self.num_qubits, self.num_qubits):
+            raise ValueError(f"Initial configuration must be a {self.num_qubits}x{self.num_qubits} matrix")
+        if final_config.shape != (self.num_qubits, self.num_qubits):
+            raise ValueError(f"Final configuration must be a {self.num_qubits}x{self.num_qubits} matrix")
+            
         path = np.linspace(initial_config, final_config, 100)
-        transition_probability = 0
+        transition_probability = 0.0
         for config in path:
             result = self.simulate_field(config)
             transition_probability += np.exp(-result["energy"])
         return {
-            "probability": transition_probability / 100,
+            "probability": float(transition_probability / 100),
             "initial_config": initial_config,
             "final_config": final_config
         }
     
     def _get_pauli_x(self, qubit: int) -> np.ndarray:
-        operator = np.zeros((2**self.num_qubits, 2**self.num_qubits))
+        if not 0 <= qubit < self.num_qubits:
+            raise ValueError(f"Qubit index must be between 0 and {self.num_qubits-1}")
+            
+        operator = np.zeros((2**self.num_qubits, 2**self.num_qubits), dtype=np.float64)
         for i in range(2**self.num_qubits):
             j = i ^ (1 << qubit)
             operator[i, j] = 1

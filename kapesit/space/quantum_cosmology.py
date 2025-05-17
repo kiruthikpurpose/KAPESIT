@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.aqua.algorithms import VQE
 from qiskit.aqua.components.optimizers import COBYLA
@@ -13,6 +13,11 @@ from qiskit.chemistry.transformations import FermionicTransformation
 
 class QuantumCosmology:
     def __init__(self, num_qubits: int, num_layers: int = 3):
+        if num_qubits <= 0:
+            raise ValueError("Number of qubits must be positive")
+        if num_layers <= 0:
+            raise ValueError("Number of layers must be positive")
+            
         self.num_qubits = num_qubits
         self.num_layers = num_layers
         self.optimizer = COBYLA(maxiter=1000)
@@ -21,7 +26,7 @@ class QuantumCosmology:
         self.circuit = QuantumCircuit(num_qubits)
         self._build_circuit()
     
-    def _build_circuit(self):
+    def _build_circuit(self) -> None:
         for layer in range(self.num_layers):
             for qubit in range(self.num_qubits):
                 self.circuit.ry(self.initial_point[2 * (layer * self.num_qubits + qubit)], qubit)
@@ -29,7 +34,10 @@ class QuantumCosmology:
             for qubit in range(self.num_qubits - 1):
                 self.circuit.cx(qubit, qubit + 1)
     
-    def simulate_universe(self, scale_factor: float) -> Dict:
+    def simulate_universe(self, scale_factor: float) -> Dict[str, Union[float, np.ndarray]]:
+        if scale_factor <= 0:
+            raise ValueError("Scale factor must be positive")
+            
         hamiltonian = self._get_cosmology_hamiltonian(scale_factor)
         solver = GroundStateEigensolver(self.variational_form, VQE)
         result = solver.solve(hamiltonian)
@@ -40,7 +48,7 @@ class QuantumCosmology:
         }
     
     def _get_cosmology_hamiltonian(self, scale_factor: float) -> Hamiltonian:
-        hamiltonian = np.zeros((2**self.num_qubits, 2**self.num_qubits))
+        hamiltonian = np.zeros((2**self.num_qubits, 2**self.num_qubits), dtype=np.float64)
         for i in range(self.num_qubits):
             hamiltonian += scale_factor * self._get_pauli_z(i)
             for j in range(i + 1, self.num_qubits):
@@ -48,27 +56,39 @@ class QuantumCosmology:
         return hamiltonian
     
     def calculate_hubble_parameter(self, scale_factor: float) -> float:
+        if scale_factor <= 0:
+            raise ValueError("Scale factor must be positive")
+            
         hamiltonian = self._get_cosmology_hamiltonian(scale_factor)
         eigenvalues = np.linalg.eigvalsh(hamiltonian)
-        return np.sqrt(np.abs(np.min(eigenvalues)))
+        return float(np.sqrt(np.abs(np.min(eigenvalues))))
     
     def simulate_inflation(self, initial_scale: float, 
-                          num_steps: int = 100) -> List[Dict]:
+                          num_steps: int = 100) -> List[Dict[str, Union[float, np.ndarray]]]:
+        if initial_scale <= 0:
+            raise ValueError("Initial scale factor must be positive")
+        if num_steps <= 0:
+            raise ValueError("Number of steps must be positive")
+            
         scale_factors = np.linspace(initial_scale, 10 * initial_scale, num_steps)
-        results = []
-        for scale in scale_factors:
-            result = self.simulate_universe(scale)
-            results.append(result)
-        return results
+        return [self.simulate_universe(scale) for scale in scale_factors]
     
     def calculate_entropy(self, scale_factor: float) -> float:
+        if scale_factor <= 0:
+            raise ValueError("Scale factor must be positive")
+            
         hamiltonian = self._get_cosmology_hamiltonian(scale_factor)
         eigenvalues = np.linalg.eigvalsh(hamiltonian)
         p = np.exp(-eigenvalues) / np.sum(np.exp(-eigenvalues))
-        return -np.sum(p * np.log(p))
+        return float(-np.sum(p * np.log(p)))
     
     def simulate_quantum_fluctuation(self, scale_factor: float, 
-                                   num_steps: int = 100) -> List[Dict]:
+                                   num_steps: int = 100) -> List[Dict[str, Union[float, np.ndarray]]]:
+        if scale_factor <= 0:
+            raise ValueError("Scale factor must be positive")
+        if num_steps <= 0:
+            raise ValueError("Number of steps must be positive")
+            
         fluctuations = []
         for _ in range(num_steps):
             fluctuation = np.random.normal(0, 0.1)
@@ -79,38 +99,51 @@ class QuantumCosmology:
     
     def calculate_correlation(self, scale_factor: float, 
                             distance: int) -> float:
+        if scale_factor <= 0:
+            raise ValueError("Scale factor must be positive")
+        if not 0 <= distance < self.num_qubits:
+            raise ValueError(f"Distance must be between 0 and {self.num_qubits-1}")
+            
         hamiltonian = self._get_cosmology_hamiltonian(scale_factor)
         eigenvalues = np.linalg.eigvalsh(hamiltonian)
         eigenvectors = np.linalg.eigh(hamiltonian)[1]
-        correlation = 0
+        correlation = 0.0
         for i in range(self.num_qubits - distance):
             correlation += np.abs(eigenvectors[i].conj() @ eigenvectors[i + distance])
-        return correlation / (self.num_qubits - distance)
+        return float(correlation / (self.num_qubits - distance))
     
     def simulate_phase_transition(self, initial_scale: float, 
-                                final_scale: float) -> Dict:
+                                final_scale: float) -> Dict[str, Union[float, float]]:
+        if initial_scale <= 0:
+            raise ValueError("Initial scale factor must be positive")
+        if final_scale <= 0:
+            raise ValueError("Final scale factor must be positive")
+            
         path = np.linspace(initial_scale, final_scale, 100)
-        transition_probability = 0
+        transition_probability = 0.0
         for scale in path:
             result = self.simulate_universe(scale)
             transition_probability += np.exp(-result["energy"])
         return {
-            "probability": transition_probability / 100,
+            "probability": float(transition_probability / 100),
             "initial_scale": initial_scale,
             "final_scale": final_scale
         }
     
     def _get_pauli_z(self, qubit: int) -> np.ndarray:
-        operator = np.zeros((2**self.num_qubits, 2**self.num_qubits))
+        if not 0 <= qubit < self.num_qubits:
+            raise ValueError(f"Qubit index must be between 0 and {self.num_qubits-1}")
+            
+        operator = np.zeros((2**self.num_qubits, 2**self.num_qubits), dtype=np.float64)
         for i in range(2**self.num_qubits):
-            if (i >> qubit) & 1:
-                operator[i, i] = 1
-            else:
-                operator[i, i] = -1
+            operator[i, i] = 1 if (i >> qubit) & 1 else -1
         return operator
     
     def _get_pauli_x(self, qubit: int) -> np.ndarray:
-        operator = np.zeros((2**self.num_qubits, 2**self.num_qubits))
+        if not 0 <= qubit < self.num_qubits:
+            raise ValueError(f"Qubit index must be between 0 and {self.num_qubits-1}")
+            
+        operator = np.zeros((2**self.num_qubits, 2**self.num_qubits), dtype=np.float64)
         for i in range(2**self.num_qubits):
             j = i ^ (1 << qubit)
             operator[i, j] = 1
